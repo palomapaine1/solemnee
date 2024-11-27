@@ -7,23 +7,24 @@ Original file is located at
     https://colab.research.google.com/drive/1G9yh4wlXEdDho0ojgLcZPqKlxiAGq9du
 """
 
+
+import streamlit as st
 import pandas as pd
 import requests
-import streamlit as st
-import io
-
-def obtener_datos_api(api_url):
-    """Función que realiza la petición a la API y devuelve un DataFrame."""
-    response = requests.get(api_url)
-    if response.status_code == 200:
-        data = response.json()
-        return pd.DataFrame(data)
-    else:
-        st.error('Error al obtener los datos de la API')
-        return None
-# Llamar la función para obtener los datos
-api_url = "https://restcountries.com/v3.1/all"
-df = obtener_datos_api(api_url)
-# Si hay datos, mostrar el DataFrame, mostrar dataframe con las columna seleccionadas, permitir filtrado y mostrar gráficos.
-
-  
+# Título de la aplicación
+st.title('Aplicación Web: Datos desde una API REST')
+# URL de la API REST (puedes cambiarla por cualquier API pública que
+devuelva JSON)
+api_url = 'https://jsonplaceholder.typicode.com/posts'
+# Realizar la petición a la API
+response = requests.get(api_url)
+# Verificar que la respuesta sea exitosa (código 200)
+if response.status_code == 200:
+# Convertir los datos JSON en un DataFrame de Pandas
+data = response.json()
+df = pd.DataFrame(data)
+# Mostrar los primeros registros
+st.write('Datos obtenidos de la API:')
+st.write(df.head())
+else:
+st.error('Error al obtener los datos de la API')
