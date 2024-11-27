@@ -7,31 +7,95 @@ Original file is located at
     https://colab.research.google.com/drive/1G9yh4wlXEdDho0ojgLcZPqKlxiAGq9du
 """
 
-import streamlit as st
 import pandas as pd
 import requests
+import streamlit as st
 
-# Título de la aplicación
-st.title('Aplicación Web: Datos desde una API REST')
-# URL de la API REST (puedes cambiarla por cualquier API pública que devuelva JSON)
-api_url = 'https://jsonplaceholder.typicode.com/posts'
-# Realizar la petición a la API
-response = requests.get(api_url)
-# Verificar que la respuesta sea exitosa (código 200)
-if response.status_code == 200:
-# Convertir los datos JSON en un DataFrame de Pandas
-    data = response.json()
-    df = pd.DataFrame(data)
-# Mostrar los primeros registros
-    st.write('Datos obtenidos de la API:')
-    st.write(df.head())
-else:  # Corrected indentation here
-    st.error('Error al obtener los datos de la API')
-    return None 
-# Llamar la función para obtener los datos
-api_url = "https://restcountries.com/v3.1/all"
-df = obtener_datos_api(api_url)
-# Si hay datos, mostrar el DataFrame, mostrar dataframe con las columna seleccionadas, permitir filtrado y mostrar gráficos.
+# Función para obtener datos de la API
+def obtener_datos_api(api_url):
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        data = response.json()
+        return pd.DataFrame(data)
+    else:
+        st.error('Error al obtener los datos de la API')
+        return None
 
-if df is not None:
-    st.write(df.head())
+# Página de interacción con los datos
+def pagina_interaccion():
+    api_url = "https://restcountries.com/v3.1/all"
+    df = obtener_datos_api(api_url)
+    
+    if df is not None:
+        st.title("Interacción con los Datos")
+        st.write(df.head())
+
+        # Selección de columnas y estadísticas
+        df['Nombre'] = df['name'].apply(lambda x: x.get('common') if isinstance(x, dict) else None)
+        df['Región'] = df['region']
+        df['Población'] = df['population']
+        df['Área (km²)'] = df['area']
+        df['Fronteras'] = df['borders'].apply(lambda x: len(x) if isinstance(x, list) else 0)
+        df['Idiomas Oficiales'] = df['languages'].apply(lambda x: len(x) if isinstance(x, dict) else 0)
+        df['Zonas Horarias'] = df['timezones'].apply(lambda x: len(x) if isinstance(x, list) else 0)
+        
+        # Filtrar columnas seleccionadas
+        columnas = ['Nombre', 'Región', 'Población', 'Área (km²)', 'Fronteras', 'Idiomas Oficiales', 'Zonas Horarias']
+        df_cleaned = df[columnas]
+        
+        st.write("Datos procesados:")
+        st.dataframe(df_cleaned)
+
+        # Selección de columna para mostrar estadísticas
+        columna_estadistica = st.selectbox("Selecciona una columna para mostrar estadísticas", df_cleaned.columns)
+        st.write(f"Estadísticas para la columna '{columna_estadistica}':")
+        st.write("Media:", df_cleaned[columna_estadistica].mean())
+        st.write("Mediana:", df_cleaned[columna_estadistica].median())
+        st.write("Desviación estándar:", df_cleaned[columna_estadistica].std())
+
+        # Ordenar datos
+        columna_ordenar = st.selectbox("Selecciona una columna para ordenar", df_cleaned.columns)
+        orden = st.radio("Selecciona el orden:", ('Ascendente', 'Descendente'))
+        df_ordenado = df_cleaned.sort_values(by=columna_ordenar, ascending=(orden == 'Ascendente'))
+        st.write("Datos ordenados:")
+        st.dataframe(df_ordenado)
+
+        # Filtrado de datos
+        columna_filtro = st.selectbox("Selecciona una columna para filtrar", df_cleaned.select_dtypes(include=['number']).columns)
+        if columna_filtro:
+            min_val, max_val = st.slider(
+                f"Selecciona el rango para {columna_filtro}:",
+                float(df_cleaned[columna_filtro].min()),
+                float(df_cleaned[columna_filtro].max()),
+                (float(df_cleaned[columna_filtro].min()), float(df_cleaned[columna_filtro].max())))
+            df_filtrado = df_cleaned[(df_cleaned[columna_filtro] >= min_val) & (df_cleaned[columna_filtro] <= max_val)]
+            st.write("Datos filtrados:")
+            st.dataframe(df_filtrado)
+
+            # Exportar datos
+            st.subheader("Exportar Datos Filtrados")
+            formato = st.radio("Elige el formato para descargar:", ('CSV', 'Excel'))
+
+            def convertir_a_csv(df):
+                return df.to_csv(index=False).encode('utf-8')
+
+            def convertir_a_excel(df):
+                import io
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='DatosFiltrados')
+                    writer.save()
+                return buffer.getvalue()
+
+            if formato == 'CSV':
+                st.download_button(
+                    label="Descargar en CSV",
+                    data=convertir_a_csv(df_filtrado),
+                    file_name='datos_filtrados.csv',
+                    mime='text/csv')
+            else:
+                st.download_button(
+                    label="Descargar en Excel",
+                    data=convertir_a_excel(df_filtrado),
+                    file_name='datos_filtrados.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
