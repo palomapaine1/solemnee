@@ -39,3 +39,70 @@ def app():
     y opciones de filtrado.
     """)
     app()
+    # Función para obtener datos de la API
+@st.cache
+def get_data():
+    url = "https://restcountries.com/v3.1/all"
+    response = requests.get(url)
+    data = response.json()
+    return data
+
+# Procesar datos JSON a DataFrame
+def process_data(data):
+    countries = []
+    for country in data:
+        countries.append({
+            "Nombre": country.get("name", {}).get("common", "N/A"),
+            "Región": country.get("region", "N/A"),
+            "Población": country.get("population", 0),
+            "Área (km²)": country.get("area", 0),
+            "Fronteras": len(country.get("borders", [])),
+            "Idiomas": len(country.get("languages", {})),
+            "Zonas horarias": len(country.get("timezones", [])),
+        })
+    return pd.DataFrame(countries)
+
+def app():
+    st.title("Interacción con los Datos")
+
+    # Obtener y procesar datos
+    data = get_data()
+    df = process_data(data)
+
+    # Mostrar datos originales
+    if st.checkbox("Mostrar datos originales"):
+        st.write(df)
+
+    # Seleccionar columna y calcular estadísticas
+    columna = st.selectbox("Seleccionar columna", df.select_dtypes(include="number").columns)
+    if columna:
+        st.write(f"Media: {df[columna].mean():.2f}")
+        st.write(f"Mediana: {df[columna].median():.2f}")
+        st.write(f"Desviación Estándar: {df[columna].std():.2f}")
+
+    # Ordenar datos
+    columna_orden = st.selectbox("Seleccionar columna para ordenar", df.columns)
+    orden = st.radio("Orden", ["Ascendente", "Descendente"])
+    if columna_orden:
+        df_ordenado = df.sort_values(by=columna_orden, ascending=(orden == "Ascendente"))
+        st.write(df_ordenado)
+
+    # Filtrar datos
+    st.write("### Filtrar filas")
+    columna_filtro = st.selectbox("Seleccionar columna numérica", df.select_dtypes(include="number").columns)
+    if columna_filtro:
+        min_val, max_val = st.slider("Rango de filtro", float(df[columna_filtro].min()), float(df[columna_filtro].max()))
+        df_filtrado = df[(df[columna_filtro] >= min_val) & (df[columna_filtro] <= max_val)]
+        st.write(df_filtrado)
+
+        # Botón para descargar datos filtrados
+        if st.button("Descargar datos filtrados"):
+            csv = df_filtrado.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Descargar CSV",
+                data=csv,
+                file_name="datos_filtrados.csv",
+                mime="text/csv",
+            )
+
+    app()
