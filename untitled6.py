@@ -12,97 +12,133 @@ import pandas as pd
 import numpy as np
 import requests
 
-# Configuración inicial
-st.set_page_config(page_title="Análisis de Datos - Países", layout="wide")
+def obtener_datos_api(api_url):
+    """Función que realiza la petición a la API y devuelve un DataFrame."""
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        data = response.json()
+        return pd.DataFrame(data)
+    else:
+        st.error('Error al obtener los datos de la API')
+        return None
 
-# Página principal
-st.title("Análisis de Datos - REST Countries API")
-st.write("""
-Esta aplicación interactiva permite explorar datos de países consultados desde la
-[API REST Countries](https://restcountries.com/v3.1/all).
-Navega entre las páginas usando el menú lateral para interactuar con los datos.
-""")
-def app():
-    st.title("Descripción del Proyecto")
-    st.write("""
-    ### Base de Datos Consultada
-    Este proyecto utiliza la API [REST Countries](https://restcountries.com/v3.1/all)
-    para analizar datos de países del mundo, incluyendo información como:
-    - Nombre común del país.
-    - Región geográfica.
-    - Población total.
-    - Área en kilómetros cuadrados.
-    - Número de fronteras, idiomas oficiales y zonas horarias.
 
-    ### Objetivo
-    Visualizar y analizar los datos de manera interactiva, proporcionando estadísticas útiles
-    y opciones de filtrado.
-    """)
-    app()
-    # Función para obtener datos de la API
-@st.cache
-def get_data():
-    url = "https://restcountries.com/v3.1/all"
-    response = requests.get(url)
-    data = response.json()
-    return data
+# Llamar la función para obtener los datos
+api_url = "https://restcountries.com/v3.1/all"
+df = obtener_datos_api(api_url)
+# Si hay datos, mostrar el DataFrame, mostrar dataframe con las columna seleccionadas, permitir filtrado y mostrar gráficos.
 
-# Procesar datos JSON a DataFrame
-def process_data(data):
-    countries = []
-    for country in data:
-        countries.append({
-            "Nombre": country.get("name", {}).get("common", "N/A"),
-            "Región": country.get("region", "N/A"),
-            "Población": country.get("population", 0),
-            "Área (km²)": country.get("area", 0),
-            "Fronteras": len(country.get("borders", [])),
-            "Idiomas": len(country.get("languages", {})),
-            "Zonas horarias": len(country.get("timezones", [])),
-        })
-    return pd.DataFrame(countries)
+if df is not None:
+  df['Nombre'] = df['name'].apply(lambda x: x.get('common', 'Desconocido') if isinstance(x, dict) else None)
+  df['Región'] = df.get('region', 'Desconocido')
+  df['Población'] = df.get('population', 0)
+  df['Área (km²)'] = df.get('area', 0)
+  df['Fronteras'] = df['borders'].apply(lambda x: len(x) if isinstance(x, list) else 0)
+  df['Idiomas Oficiales'] = df['languages'].apply(lambda x: len(x) if isinstance(x, dict) else 0)
+  df['Zonas Horarias'] = df['timezones'].apply(lambda x: len(x) if isinstance(x, list) else 0)
 
-def app():
-    st.title("Interacción con los Datos")
+columnas = ['Nombre', 'Región', 'Población', 'Área (km²)', 'Fronteras', 'Idiomas Oficiales', 'Zonas Horarias']
+if all(col in df.columns for col in columnas):
+    df_cleaned = df[columnas]
+else:
+    st.error("No se encontraron todas las columnas necesarias.")
+    st.stop()
 
-    # Obtener y procesar datos
-    data = get_data()
-    df = process_data(data)
+    # Dataframe para trabajar
+    df_cleaned = df[columnas]
 
-    # Mostrar datos originales
-    if st.checkbox("Mostrar datos originales"):
-        st.write(df)
+    # Mostrar DataFrame con las columnas seleccionadas
+    st.title("Interacción con los datos")
+    st.header("Mostrar los datos originales")
+    st.dataframe(df_cleaned)
 
-    # Seleccionar columna y calcular estadísticas
-    columna = st.selectbox("Seleccionar columna", df.select_dtypes(include="number").columns)
-    if columna:
-        st.write(f"Media: {df[columna].mean():.2f}")
-        st.write(f"Mediana: {df[columna].median():.2f}")
-        st.write(f"Desviación Estándar: {df[columna].std():.2f}")
-
-    # Ordenar datos
-    columna_orden = st.selectbox("Seleccionar columna para ordenar", df.columns)
-    orden = st.radio("Orden", ["Ascendente", "Descendente"])
-    if columna_orden:
-        df_ordenado = df.sort_values(by=columna_orden, ascending=(orden == "Ascendente"))
-        st.write(df_ordenado)
-
-    # Filtrar datos
-    st.write("### Filtrar filas")
-    columna_filtro = st.selectbox("Seleccionar columna numérica", df.select_dtypes(include="number").columns)
+    st.header("Selecciona una columna del dataframe utilizando un menú desplegable")
+    columnas = st.multiselect('Selecciona las columnas a visualizar', df_cleaned.columns.tolist(), default=df_cleaned.columns.tolist())
+    df_seleccionado = df_cleaned[columnas]
+    # Mostrar el DataFrame con las columnas seleccionadas
+    st.write('Columna Selecionada:')
+    st.write(df_seleccionado)
+    st.write("Estadísticas de las columnas seleccionadas:")
+    st.write("Media:",)
+    st.write(df_seleccionado.mean(numeric_only=True))
+    st.write("Mediana:",)
+    st.write(df_seleccionado.median(numeric_only=True))
+    st.write("Desviación estándar:",)
+    st.write(df_seleccionado.std(numeric_only=True))
+    columna_ordenar = st.selectbox('Selecciona una columna para ordenar', df_seleccionado.columns)
+    # Control para seleccionar el orden (ascendente o descendente)
+    orden = st.radio('Selecciona el orden:', ('Ascendente', 'Descendente'))
+    # Ordenar el DataFrame según la columna seleccionada y el orden elegido
+    if orden == 'Ascendente':
+        df_ordenado = df_seleccionado.sort_values(by=columna_ordenar, ascending=True)
+    else:
+        df_ordenado = df_seleccionado.sort_values(by=columna_ordenar, ascending=False)
+    # Mostrar el DataFrame ordenado
+    st.write('DataFrame Ordenado:')
+    st.write(df_ordenado)
+    st.subheader("Filtrar Datos")
+    columna_filtro = st.selectbox("Selecciona una columna para filtrar:", df.select_dtypes(include=['number']).columns)
     if columna_filtro:
-        min_val, max_val = st.slider("Rango de filtro", float(df[columna_filtro].min()), float(df[columna_filtro].max()))
-        df_filtrado = df[(df[columna_filtro] >= min_val) & (df[columna_filtro] <= max_val)]
-        st.write(df_filtrado)
+     min_val, max_val = st.slider(
+        f"Selecciona el rango para {columna_filtro}:",
+        float(df[columna_filtro].min()),
+        float(df[columna_filtro].max()),
+        (float(df[columna_filtro].min()), float(df[columna_filtro].max())))
+    df_filtrado = df[(df[columna_filtro] >= min_val) & (df[columna_filtro] <= max_val)]
+    st.write("**Datos Filtrados:**")
+    st.write(df_filtrado)
 
-        # Botón para descargar datos filtrados
-        if st.button("Descargar datos filtrados"):
-            csv = df_filtrado.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Descargar CSV",
-                data=csv,
-                file_name="datos_filtrados.csv",
-                mime="text/csv",)
+    # Botón para descargar los datos filtrados
+    st.subheader("Exportar Datos Filtrados")
+    formato = st.radio("Elige el formato para descargar:", ('CSV', 'Excel'))
 
-    app()
+    @st.cache_data
+    def convertir_a_csv(df):
+        return df.to_csv(index=False).encode('utf-8')
+
+    @st.cache_data
+    def convertir_a_excel(df):
+        import io
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='DatosFiltrados')
+            writer.save()
+        return buffer.getvalue()
+
+    if formato == 'CSV':
+        st.download_button(
+            label="Descargar en CSV",
+            data=convertir_a_csv(df_filtrado),
+            file_name='datos_filtrados.csv',
+            mime='text/csv')
+    else:
+        st.download_button(
+            label="Descargar en Excel",
+            data=convertir_a_excel(df_filtrado),
+            file_name='datos_filtrados.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    # Título de la aplicación
+st.title("Gráficos Interactivos con Streamlit")
+
+# Cargar archivo o usar ejemplo
+st.subheader("Carga de Datos")
+uploaded_file = st.file_uploader("Sube un archivo CSV o Excel:", type=["csv", "xlsx"])
+
+if uploaded_file:
+    try:
+        # Detectar formato y cargar archivo
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith('.xlsx'):
+            df = pd.read_excel(uploaded_file)
+        st.success("Archivo cargado exitosamente.")
+    except Exception as e:
+        st.error(f"Error al cargar el archivo: {e}")
+        df = pd.DataFrame()
+else:
+    # Crear un DataFrame de ejemplo si no se sube archivo
+    st.info("Usando datos de ejemplo porque no se subió archivo.")
+    data = {'Categoría': ['A', 'B', 'C', 'D', 'E'],'Valor 1': [10, 20, 30, 40, 50],'Valor 2': [15, 25, 35, 45, 55],'Valor 3': [5, 15, 25, 35, 45],}
+    df = pd.DataFrame(data)
+
   
