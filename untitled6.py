@@ -106,3 +106,10 @@ def app():
             )
 
     app()
+   def app():
+    st.title("Visualización de Gráficos")
+
+    # Código para visualizar gráficos basados en el DataFrame (se puede complementar)
+    st.write("Próximamente...")
+
+app()
