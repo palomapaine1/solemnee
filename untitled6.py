@@ -27,7 +27,17 @@ if response.status_code == 200:
     st.write(df.head())
 else:  # Corrected indentation here
     st.error('Error al obtener los datos de la API')
-# Llamar la función para obtener los datos
-api_url = "https://restcountries.com/v3.1/all"
-df = obtener_datos_api(api_url)
-# Si hay datos, mostrar el DataFrame, mostrar dataframe con las columna seleccionadas, permitir filtrado y mostrar gráficos.
+api_url_countries = "https://restcountries.com/v3.1/all"
+df_countries = obtener_datos_api(api_url_countries)
+
+if df_countries is not None:
+    # Selección de columnas específicas
+    df_countries['Nombre'] = df_countries['name'].apply(lambda x: x.get('common') if isinstance(x, dict) else None)
+    df_countries['Región'] = df_countries.get('region', 'Desconocido')
+    df_countries['Población'] = df_countries.get('population', 0)
+    df_countries['Área (km²)'] = df_countries.get('area', 0)
+
+    st.write('Datos obtenidos de REST Countries:')
+    st.write(df_countries[['Nombre', 'Región', 'Población', 'Área (km²)']].head())
+else:
+    st.error('Error al procesar los datos de REST Countries')
