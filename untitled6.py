@@ -7,14 +7,14 @@ Original file is located at
     https://colab.research.google.com/drive/1G9yh4wlXEdDho0ojgLcZPqKlxiAGq9du
 """
 
-
 import streamlit as st
 import pandas as pd
 import requests
+
 # Título de la aplicación
 st.title('Aplicación Web: Datos desde una API REST')
 # URL de la API REST (puedes cambiarla por cualquier API pública que devuelva JSON)
-api_url = 'https://restcountries.com/v3.1/all'
+api_url = 'https://jsonplaceholder.typicode.com/posts'
 # Realizar la petición a la API
 response = requests.get(api_url)
 # Verificar que la respuesta sea exitosa (código 200)
@@ -27,7 +27,3 @@ if response.status_code == 200:
     st.write(df.head())
 else:  # Corrected indentation here
     st.error('Error al obtener los datos de la API')
-# Llamar la función para obtener los datos
-api_url = "https://restcountries.com/v3.1/all"
-df = obtener_datos_api(api_url)
-# Si hay datos, mostrar el DataFrame, mostrar dataframe con las columna seleccionadas, permitir filtrado y mostrar gráficos.
