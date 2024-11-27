@@ -102,8 +102,7 @@ def app():
                 label="Descargar CSV",
                 data=csv,
                 file_name="datos_filtrados.csv",
-                mime="text/csv",
-            )
+                mime="text/csv",)
 
     app()
    def app():
@@ -112,4 +111,4 @@ def app():
     # Código para visualizar gráficos basados en el DataFrame (se puede complementar)
     st.write("Próximamente...")
 
-app()
+    app()
